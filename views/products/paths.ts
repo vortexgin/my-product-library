@@ -1,0 +1,6 @@
+export {
+  PRODUCT_CATEGORY_LIST_PATH,
+  PRODUCT_LIST_PATH,
+  PRODUCT_UNIT_LIST_PATH,
+  PRODUCT_VARIANT_LIST_PATH,
+} from "@/app/product/paths";
