@@ -49,8 +49,8 @@ export default async function ProductVariantDetailPage({
 
   const [product, metadataRows, fields] = await Promise.all([
     new ProductGetUseCase().exec(variant.product_id).catch(() => null),
-    new ProductMetadataListUseCase().exec({ filter: { variant_id: uuid }, limit: 500 }).catch(() => []),
-    new ProductMetadataFieldListUseCase().exec({ limit: 500 }).catch(() => []),
+    new ProductMetadataListUseCase().exec({ filter: { variant_id: uuid }, limit: 100 }).catch(() => []),
+    new ProductMetadataFieldListUseCase().exec({ limit: 100 }).catch(() => []),
   ]);
   const productName = product ? `${product.name} · ${product.sku}` : "—";
   const fieldNames = new Map(fields.map((field) => [field.uuid, field.name]));
@@ -104,10 +104,10 @@ export default async function ProductVariantDetailPage({
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <Link
-                href={PRODUCT_VARIANT_LIST_PATH}
+                href={`/product/views/products/${variant.product_id}`}
                 className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
               >
-                Back to list
+                Back to product
               </Link>
               <AuthComponent
                 user={session.user}

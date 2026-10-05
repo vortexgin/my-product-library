@@ -57,7 +57,7 @@ export default async function ProductDetailPage({
       .exec({ filter: { product_id: uuid }, limit: 100 })
       .catch(() => []),
     new ProductMetadataFieldListUseCase()
-      .exec({ limit: 500 })
+      .exec({ limit: 100 })
       .catch(() => []),
     product.category_id
       ? new ProductCategoryGetUseCase().exec(product.category_id).then((row) => row?.name ?? "—").catch(() => "—")

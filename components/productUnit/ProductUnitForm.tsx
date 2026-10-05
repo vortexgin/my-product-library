@@ -46,7 +46,7 @@ export function ProductUnitForm({
         return;
       }
 
-      router.push(PRODUCT_UNIT_LIST_PATH);
+      router.push(mode === "create" ? PRODUCT_UNIT_LIST_PATH : `${PRODUCT_UNIT_LIST_PATH}/${uuid}`);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

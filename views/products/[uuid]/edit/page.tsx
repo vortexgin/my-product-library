@@ -35,8 +35,8 @@ export default async function ProductEditPage({
 
   // Product-level metadata rows with field names for the form's initial rows.
   const [metadataRows, fields] = await Promise.all([
-    new ProductMetadataListUseCase().exec({ filter: { product_id: uuid }, limit: 500 }).catch(() => []),
-    new ProductMetadataFieldListUseCase().exec({ limit: 500 }).catch(() => []),
+    new ProductMetadataListUseCase().exec({ filter: { product_id: uuid }, limit: 100 }).catch(() => []),
+    new ProductMetadataFieldListUseCase().exec({ limit: 100 }).catch(() => []),
   ]);
   const fieldNames = new Map(fields.map((field) => [field.uuid, field.name]));
 

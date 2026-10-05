@@ -228,7 +228,7 @@ export function ProductForm({
         setError(envelope.message || `Failed to ${mode === "create" ? "create" : "update"} product.`);
         return;
       }
-      router.push(PRODUCT_LIST_PATH);
+      router.push(mode === "create" ? PRODUCT_LIST_PATH : `${PRODUCT_LIST_PATH}/${uuid}`);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

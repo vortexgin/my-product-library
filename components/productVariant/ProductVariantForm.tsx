@@ -212,7 +212,7 @@ export function ProductVariantForm({
         setError(envelope.message || `Failed to ${mode === "create" ? "create" : "update"} product variant.`);
         return;
       }
-      router.push(PRODUCT_VARIANT_LIST_PATH);
+      router.push(mode === "create" ? PRODUCT_VARIANT_LIST_PATH : `${PRODUCT_VARIANT_LIST_PATH}/${uuid}`);
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -379,7 +379,13 @@ export function ProductVariantForm({
               {isPending ? "Saving..." : mode === "create" ? "Create product variant" : "Save changes"}
             </button>
             <Link
-              href={PRODUCT_VARIANT_LIST_PATH}
+              href={
+                mode === "edit" && uuid
+                  ? `/product/views/product-variants/${uuid}`
+                  : productId
+                    ? `/product/views/products/${productId}`
+                    : PRODUCT_VARIANT_LIST_PATH
+              }
               className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
             >
               Cancel
