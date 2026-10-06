@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { PRODUCT_LIST_PATH } from "@/app/product/views/products/paths";
-import type { Product } from "@/app/product/models/ProductModel";
+import type { Product, ProductBomLine } from "@/app/product/models/ProductModel";
+import type { ProductVariant } from "@/app/product/models/ProductVariantModel";
 import type { ProductMetadata } from "@/app/product/models/ProductMetadataModel";
 import type { ProductMetadataField } from "@/app/product/models/ProductMetadataFieldModel";
 import type { ProductCategory } from "@/app/product/models/ProductCategoryModel";
@@ -48,7 +49,27 @@ type MetadataRow = {
 
 export type ProductFormInitial = Partial<Pick<Product, "sku" | "name" | "description" | "category_id" | "unit_id" | "base_price" | "status">> & {
   metadata?: Array<Pick<ProductMetadata, "uuid" | "product_metadata_field_id" | "value"> & { field_name?: string }>;
+  bom?: Array<Pick<ProductBomLine, "uuid" | "variant_id" | "component_product_id" | "component_variant_id" | "qty">>;
 };
+
+type BomRow = {
+  key: string;
+  uuid?: string;
+  component_product_id: string;
+  component_variant_id: string;
+  variant_id: string;
+  qty: string;
+};
+
+function newBomRow(): BomRow {
+  return {
+    key: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    component_product_id: "",
+    component_variant_id: "",
+    variant_id: "",
+    qty: "1",
+  };
+}
 
 function newRow(): MetadataRow {
   return {
@@ -77,11 +98,27 @@ export function ProductForm({
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [units, setUnits] = useState<ProductUnit[]>([]);
   const [fields, setFields] = useState<ProductMetadataField[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [allVariants, setAllVariants] = useState<ProductVariant[]>([]);
   const [categoryId, setCategoryId] = useState(initial?.category_id ?? "");
   const [unitId, setUnitId] = useState(initial?.unit_id ?? "");
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [optionsError, setOptionsError] = useState("");
   const [fieldsError, setFieldsError] = useState("");
+  const [bomError, setBomError] = useState("");
+  const [bomRows, setBomRows] = useState<BomRow[]>(() => {
+    if (initial?.bom && initial.bom.length > 0) {
+      return initial.bom.map((item, index) => ({
+        key: item.uuid ?? `initial-bom-${index}-${Math.random().toString(36).slice(2)}`,
+        uuid: item.uuid,
+        component_product_id: item.component_product_id,
+        component_variant_id: item.component_variant_id ?? "",
+        variant_id: item.variant_id ?? "",
+        qty: String(item.qty),
+      }));
+    }
+    return [];
+  });
   const [rows, setRows] = useState<MetadataRow[]>(() => {
     if (initial?.metadata && initial.metadata.length > 0) {
       return initial.metadata.map((item, index) => ({
@@ -106,15 +143,27 @@ export function ProductForm({
       ? [{ uuid: initial.unit_id, name: initial.unit_id, symbol: "" } as ProductUnit, ...units]
       : units;
 
+  // Component dropdown excludes this product (self-reference is rejected server-side).
+  // Search filters are display-only: submit builds from full bomRows state, never the filtered view.
+  const [bomFilter, setBomFilter] = useState("");
+  const componentItems = products.filter((option) => option.uuid !== uuid);
+  const visibleComponentItems = componentItems.filter((option) =>
+    `${option.sku} ${option.name}`.toLowerCase().includes(bomFilter.trim().toLowerCase()),
+  );
+  // Scope dropdown = this product's own variants (edit mode only; create has none yet).
+  const scopeVariantItems = allVariants.filter((variant) => uuid && variant.product_id === uuid);
+
   useEffect(() => {
     let active = true;
     (async () => {
       try {
         // Independent degrade: one dropdown failing must not block the others.
-        const [categoryResult, unitResult, fieldResult] = await Promise.allSettled([
+        const [categoryResult, unitResult, fieldResult, productResult, variantResult] = await Promise.allSettled([
           getEncrypted<ProductCategory[]>(`/product/api/v1/product-categories?limit=100&sortProperty=name&sortDirection=asc`),
           getEncrypted<ProductUnit[]>(`/product/api/v1/product-units?limit=100&sortProperty=name&sortDirection=asc`),
           getEncrypted<ProductMetadataField[]>(`/product/api/v1/product-metadata-fields?limit=100&sortProperty=name&sortDirection=asc`),
+          getEncrypted<Product[]>(`/product/api/v1/products?limit=100&sortProperty=name&sortDirection=asc`),
+          getEncrypted<ProductVariant[]>(`/product/api/v1/product-variants?limit=100&sortProperty=name&sortDirection=asc`),
         ]);
         if (!active) {
           return;
@@ -137,10 +186,23 @@ export function ProductForm({
           logDegrade("metadata-fields", fieldResult);
           setFieldsError("Failed to load metadata fields. You can still add a new field manually.");
         }
+        if (productResult.status === "fulfilled" && productResult.value.success) {
+          setProducts((productResult.value.data ?? []).filter((row) => row.status !== "deleted"));
+        } else {
+          logDegrade("bom-products", productResult);
+          setBomError("Failed to load products for the bill of materials.");
+        }
+        if (variantResult.status === "fulfilled" && variantResult.value.success) {
+          setAllVariants((variantResult.value.data ?? []).filter((row) => row.status !== "deleted"));
+        } else {
+          logDegrade("bom-variants", variantResult);
+          setBomError("Failed to load variants for the bill of materials.");
+        }
       } catch {
         if (active) {
           setOptionsError((current) => current || "Failed to load options. Please try again.");
           setFieldsError((current) => current || "Failed to load metadata fields. You can still add a new field manually.");
+          setBomError((current) => current || "Failed to load products for the bill of materials.");
         }
       } finally {
         if (active) {
@@ -159,6 +221,14 @@ export function ProductForm({
 
   function removeRow(key: string) {
     setRows((current) => current.filter((row) => row.key !== key));
+  }
+
+  function updateBomRow(key: string, patch: Partial<BomRow>) {
+    setBomRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  }
+
+  function removeBomRow(key: string) {
+    setBomRows((current) => current.filter((row) => row.key !== key));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -218,6 +288,35 @@ export function ProductForm({
         return;
       }
       (payload as Record<string, unknown>).metadata = metadata;
+
+      // Omission = delete: full-replacement BoM sync soft-deletes rows left
+      // out of this payload (sending bom: [] deletes all).
+      const bom = bomRows.map((row) => {
+        if (!row.component_product_id) {
+          return { invalid: true };
+        }
+        if (uuid && row.component_product_id === uuid) {
+          return { invalid: true };
+        }
+        const qty = Number.parseInt(row.qty, 10);
+        if (!Number.isInteger(qty) || qty < 1) {
+          return { invalid: true };
+        }
+        return {
+          ...(row.uuid ? { uuid: row.uuid } : {}),
+          component_product_id: row.component_product_id,
+          component_variant_id: row.component_variant_id || null,
+          variant_id: row.variant_id || null,
+          qty,
+        };
+      });
+
+      if (bom.some((item) => (item as Record<string, unknown>).invalid)) {
+        setError("Each bill-of-materials row needs a component (not this product) and qty ≥ 1.");
+        setIsPending(false);
+        return;
+      }
+      (payload as Record<string, unknown>).bom = bom;
 
       const envelope =
         mode === "create"
@@ -393,6 +492,130 @@ export function ProductForm({
                 </div>
               ))}
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Bill of materials</h2>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  What this product is made of. Issuing this product consumes components automatically.
+                </p>
+                {bomError ? (
+                  <p role="alert" className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    {bomError}
+                  </p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setBomRows((current) => [...current, newBomRow()])}
+                className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                Add component
+              </button>
+            </div>
+            <div className="mt-3">
+              <TextField
+                value={bomFilter}
+                onChange={(event) => setBomFilter(event.target.value)}
+                placeholder="Filter components..."
+                aria-label="Filter component products"
+                className={rowInputClass}
+              />
+            </div>
+            {bomRows.length === 0 ? (
+              <p className="mt-3 text-xs text-slate-500">No components. This product is stocked directly.</p>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {bomRows.map((row, index) => {
+                  const componentVariants = allVariants.filter(
+                    (variant) => variant.product_id === row.component_product_id,
+                  );
+                  const componentLabel = (id: string) => {
+                    const found = products.find((option) => option.uuid === id);
+                    return found ? `${found.sku} · ${found.name}` : id;
+                  };
+                  return (
+                    <div key={row.key} className="grid gap-2 rounded-xl bg-slate-50 p-3">
+                      <SelectField
+                        label={`Component #${index + 1}`}
+                        value={row.component_product_id}
+                        onChange={(event) =>
+                          updateBomRow(row.key, {
+                            component_product_id: event.target.value,
+                            component_variant_id: "",
+                          })
+                        }
+                        disabled={optionsLoading}
+                        options={[
+                          ...visibleComponentItems.map((option) => ({
+                            value: option.uuid,
+                            label: `${option.sku} · ${option.name}`,
+                          })),
+                          ...(row.component_product_id &&
+                          !componentItems.some((option) => option.uuid === row.component_product_id)
+                            ? [{ value: row.component_product_id, label: componentLabel(row.component_product_id) }]
+                            : []),
+                        ]}
+                        placeholder={optionsLoading ? "Loading products..." : "Select component..."}
+                        labelClassName={rowLabelClass}
+                        className={rowInputClass}
+                      />
+                      <div className="grid gap-2 sm:grid-cols-3">
+                        <SelectField
+                          label="For variant"
+                          value={row.variant_id}
+                          onChange={(event) => updateBomRow(row.key, { variant_id: event.target.value })}
+                          disabled={optionsLoading || mode === "create"}
+                          options={scopeVariantItems.map((option) => ({
+                            value: option.uuid,
+                            label: `${option.sku} · ${option.name}`,
+                          }))}
+                          placeholder="— All variants —"
+                          hint={mode === "create" ? "Save first, then scope by variant." : undefined}
+                          labelClassName={rowLabelClass}
+                          className={rowInputClass}
+                        />
+                        <SelectField
+                          label="Component variant"
+                          value={row.component_variant_id}
+                          onChange={(event) => updateBomRow(row.key, { component_variant_id: event.target.value })}
+                          disabled={optionsLoading || !row.component_product_id}
+                          options={componentVariants.map((option) => ({
+                            value: option.uuid,
+                            label: `${option.sku} · ${option.name}`,
+                          }))}
+                          placeholder="— Any variant —"
+                          labelClassName={rowLabelClass}
+                          className={rowInputClass}
+                        />
+                        <TextField
+                          label="Qty"
+                          type="number"
+                          value={row.qty}
+                          onChange={(event) => updateBomRow(row.key, { qty: event.target.value })}
+                          min={1}
+                          step={1}
+                          labelClassName={rowLabelClass}
+                          className={rowInputClass}
+                        />
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => removeBomRow(row.key)}
+                          aria-label={`Remove bill-of-materials row ${index + 1}`}
+                          className="inline-flex items-center justify-center rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-600 transition hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {error ? (

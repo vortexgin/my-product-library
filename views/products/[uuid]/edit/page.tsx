@@ -72,6 +72,13 @@ export default async function ProductEditPage({
                 value: row.value,
                 field_name: fieldNames.get(row.product_metadata_field_id),
               })),
+            bom: (product.bom ?? []).map((row) => ({
+              uuid: row.uuid,
+              variant_id: row.variant_id,
+              component_product_id: row.component_product_id,
+              component_variant_id: row.component_variant_id,
+              qty: row.qty,
+            })),
           }}
         />
       </main>

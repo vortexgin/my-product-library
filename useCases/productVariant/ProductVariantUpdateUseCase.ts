@@ -1,7 +1,7 @@
 import Joi from "joi";
 import { Op, UniqueConstraintError } from "sequelize";
 import ProductVariantModelFactory, { ProductVariantModel, type ProductVariant, type UpdateProductVariantInput } from "@/app/product/models/ProductVariantModel";
-import { syncProductMetadata, type MetadataNestedItem } from "@/app/product/useCases/product/productMetadataSync";
+import { syncProductMetadata, type MetadataNestedItem } from "@/app/product/libraries/productMetadataSync";
 import { recordActivityLog, type ActivityActor } from "@/app/base/models/ActivityLogModel";
 import { BaseUseCase } from "@/useCases/BaseUseCase";
 import DuplicateEntityException from "@/exceptions/DuplicateEntityException";

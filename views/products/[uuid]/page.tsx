@@ -12,8 +12,6 @@ import { ProductGetUseCase } from "@/app/product/useCases/product/ProductGetUseC
 import { ProductVariantListUseCase } from "@/app/product/useCases/productVariant/ProductVariantListUseCase";
 import { ProductMetadataListUseCase } from "@/app/product/useCases/productMetadata/ProductMetadataListUseCase";
 import { ProductMetadataFieldListUseCase } from "@/app/product/useCases/productMetadataField/ProductMetadataFieldListUseCase";
-import { ProductCategoryGetUseCase } from "@/app/product/useCases/productCategory/ProductCategoryGetUseCase";
-import { ProductUnitGetUseCase } from "@/app/product/useCases/productUnit/ProductUnitGetUseCase";
 import { resolveEffectivePrice } from "@/app/product/models/ProductVariantModel";
 
 export const metadata: Metadata = {
@@ -49,7 +47,7 @@ export default async function ProductDetailPage({
     notFound();
   }
 
-  const [variants, metadataRows, fields, categoryName, unitLabel] = await Promise.all([
+  const [variants, metadataRows, fields] = await Promise.all([
     new ProductVariantListUseCase()
       .exec({ filter: { product_id: uuid }, limit: 100 }, session.user)
       .catch(() => []),
@@ -59,13 +57,13 @@ export default async function ProductDetailPage({
     new ProductMetadataFieldListUseCase()
       .exec({ limit: 100 })
       .catch(() => []),
-    product.category_id
-      ? new ProductCategoryGetUseCase().exec(product.category_id).then((row) => row?.name ?? "—").catch(() => "—")
-      : Promise.resolve("—"),
-    product.unit_id
-      ? new ProductUnitGetUseCase().exec(product.unit_id).then((row) => (row ? `${row.name} (${row.symbol})` : "—")).catch(() => "—")
-      : Promise.resolve("—"),
   ]);
+  const categoryLabel = product.category
+    ? product.category.name
+    : (product.category_id ?? "—");
+  const unitLabel = product.unit
+    ? (product.unit.symbol ? `${product.unit.name} (${product.unit.symbol})` : product.unit.name)
+    : (product.unit_id ?? "—");
   const fieldNames = new Map(fields.map((field) => [field.uuid, field.name]));
   const productMetadata = metadataRows.filter((row) => !row.variant_id);
 
@@ -94,7 +92,7 @@ export default async function ProductDetailPage({
               <Row label="SKU" value={product.sku} />
               <Row label="Name" value={product.name} />
               <Row label="Description" value={product.description ?? "—"} />
-              <Row label="Category" value={categoryName} />
+              <Row label="Category" value={categoryLabel} />
               <Row label="Unit" value={unitLabel} />
               <Row label="Base price" value={String(product.base_price)} />
               <Row label="Status" value={product.status} />
@@ -192,6 +190,31 @@ export default async function ProductDetailPage({
               </dl>
             </div>
           ) : null}
+
+          <div className="mt-6 rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-[0_30px_80px_rgba(15,23,42,0.12)] backdrop-blur-sm sm:p-8">
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-blue-600">Bill of materials</p>
+            <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-900">Components.</h2>
+            {!product.bom || product.bom.length === 0 ? (
+              <p className="mt-4 text-sm text-slate-500">No components. This product is stocked directly.</p>
+            ) : (
+              <dl className="mt-4">
+                {product.bom.map((row) => (
+                  <Row
+                    key={row.uuid}
+                    label={`${row.component_sku ?? row.component_product_id} × ${row.qty}`}
+                    value={[
+                      row.component_name ?? row.component_product_id,
+                      row.component_variant_name ? `variant ${row.component_variant_name}` : null,
+                      row.variant_name ? `for ${row.variant_name}` : "for all variants",
+                      row.status,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  />
+                ))}
+              </dl>
+            )}
+          </div>
 
           <ActivityTimeline entity="product" entityUuid={product.uuid} />
         </div>

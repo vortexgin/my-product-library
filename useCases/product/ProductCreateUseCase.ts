@@ -5,8 +5,8 @@ import ProductModelFactory, { ProductModel, type CreateProductInput, type Produc
 import ProductCategoryModelFactory, { ProductCategoryModel } from "@/app/product/models/ProductCategoryModel";
 import ProductUnitModelFactory, { ProductUnitModel } from "@/app/product/models/ProductUnitModel";
 import { ensurePcsUnit } from "@/app/product/useCases/productUnit/ProductUnitCreateUseCase";
-import { syncProductMetadata, type MetadataNestedItem } from "@/app/product/useCases/product/productMetadataSync";
-import { syncProductBom, type BomNestedItem } from "@/app/product/useCases/product/productBomSync";
+import { syncProductMetadata, type MetadataNestedItem } from "@/app/product/libraries/productMetadataSync";
+import { syncProductBom, type BomNestedItem } from "@/app/product/libraries/productBomSync";
 import { UserModel } from "@/app/base/models/UserModel";
 import { recordActivityLog, type ActivityActor } from "@/app/base/models/ActivityLogModel";
 import { BaseUseCase } from "@/useCases/BaseUseCase";
@@ -84,7 +84,8 @@ export class ProductCreateUseCase extends BaseUseCase<CreateProductInput, Produc
 
     let unitId = input.unit_id ?? null;
     if (!unitId) {
-      unitId = (await ensurePcsUnit(organizationId, actor)).uuid;
+      const pcs = await ensurePcsUnit(organizationId, actor);
+      unitId = pcs.uuid;
     }
 
     try {

@@ -3,7 +3,7 @@ import Joi from "joi";
 import { UniqueConstraintError } from "sequelize";
 import ProductVariantModelFactory, { ProductVariantModel, type CreateProductVariantInput, type ProductVariant } from "@/app/product/models/ProductVariantModel";
 import ProductModelFactory, { ProductModel } from "@/app/product/models/ProductModel";
-import { syncProductMetadata, type MetadataNestedItem } from "@/app/product/useCases/product/productMetadataSync";
+import { syncProductMetadata, type MetadataNestedItem } from "@/app/product/libraries/productMetadataSync";
 import { UserModel } from "@/app/base/models/UserModel";
 import { recordActivityLog, type ActivityActor } from "@/app/base/models/ActivityLogModel";
 import { BaseUseCase } from "@/useCases/BaseUseCase";
