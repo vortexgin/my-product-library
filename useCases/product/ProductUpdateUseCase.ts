@@ -4,6 +4,7 @@ import ProductModelFactory, { ProductModel, type Product, type UpdateProductInpu
 import ProductCategoryModelFactory, { ProductCategoryModel } from "@/app/product/models/ProductCategoryModel";
 import ProductUnitModelFactory, { ProductUnitModel } from "@/app/product/models/ProductUnitModel";
 import { syncProductMetadata, type MetadataNestedItem } from "@/app/product/useCases/product/productMetadataSync";
+import { syncProductBom, type BomNestedItem } from "@/app/product/useCases/product/productBomSync";
 import { UserModel } from "@/app/base/models/UserModel";
 import { recordActivityLog, type ActivityActor } from "@/app/base/models/ActivityLogModel";
 import { BaseUseCase } from "@/useCases/BaseUseCase";
@@ -18,6 +19,14 @@ const metadataNestedSchema = Joi.object({
   value: Joi.string().trim().min(1).required(),
 });
 
+const bomNestedSchema = Joi.object({
+  uuid: Joi.string().uuid({ version: "uuidv4" }).optional(),
+  component_product_id: Joi.string().uuid({ version: "uuidv4" }).required(),
+  component_variant_id: Joi.string().uuid({ version: "uuidv4" }).allow(null).optional(),
+  variant_id: Joi.string().uuid({ version: "uuidv4" }).allow(null).optional(),
+  qty: Joi.number().integer().min(1).required(),
+});
+
 const updateProductSchema = Joi.object({
   sku: Joi.string().trim().min(2).max(60).optional(),
   name: Joi.string().trim().min(2).max(160).optional(),
@@ -27,6 +36,7 @@ const updateProductSchema = Joi.object({
   base_price: Joi.number().integer().min(0).optional(),
   status: Joi.string().valid("active", "inactive", "deleted").optional(),
   metadata: Joi.array().items(metadataNestedSchema).optional(),
+  bom: Joi.array().items(bomNestedSchema).optional(),
 }).unknown(false).min(1);
 
 export class ProductUpdateUseCase extends BaseUseCase<string, Product, { uuid: string; input: UpdateProductInput; actor: ActivityActor }> {
@@ -139,6 +149,12 @@ export class ProductUpdateUseCase extends BaseUseCase<string, Product, { uuid: s
         api.organization_id,
         actor,
       );
+    }
+
+    // Full-replacement BoM sync (all scopes); omitted rows soft-delete.
+    if (Object.prototype.hasOwnProperty.call(input, "bom")) {
+      const api = ProductModel.toApi(this.productData?.toJSON());
+      await syncProductBom(uuid, input.bom as BomNestedItem[] | undefined, api.organization_id, actor);
     }
 
     return ProductModel.toApi(this.productData?.toJSON());

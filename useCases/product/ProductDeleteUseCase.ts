@@ -2,6 +2,7 @@ import Joi from "joi";
 import ProductModelFactory, { ProductModel, type Product } from "@/app/product/models/ProductModel";
 import ProductVariantModelFactory, { ProductVariantModel } from "@/app/product/models/ProductVariantModel";
 import ProductMetadataModelFactory, { ProductMetadataModel } from "@/app/product/models/ProductMetadataModel";
+import ProductBomModelFactory, { ProductBomModel } from "@/app/product/models/ProductBomModel";
 import { recordActivityLog, type ActivityActor } from "@/app/base/models/ActivityLogModel";
 import { BaseUseCase } from "@/useCases/BaseUseCase";
 import NotFoundException from "@/exceptions/NotFoundException";
@@ -43,7 +44,7 @@ export class ProductDeleteUseCase extends BaseUseCase<string, boolean, { uuid: s
       return false;
     }
 
-    // Cascade soft-delete, same use case, sequential: variants + all metadata.
+    // Cascade soft-delete, same use case, sequential: variants + all metadata + BoM rows.
     await ProductVariantModelFactory();
     await ProductVariantModel.update(
       { status: "deleted", deleted_at: new Date(), updated_at: new Date() },
@@ -51,6 +52,11 @@ export class ProductDeleteUseCase extends BaseUseCase<string, boolean, { uuid: s
     );
     await ProductMetadataModelFactory();
     await ProductMetadataModel.update(
+      { status: "deleted", deleted_at: new Date(), updated_at: new Date() },
+      { where: { product_id: uuid, deleted_at: null } },
+    );
+    await ProductBomModelFactory();
+    await ProductBomModel.update(
       { status: "deleted", deleted_at: new Date(), updated_at: new Date() },
       { where: { product_id: uuid, deleted_at: null } },
     );

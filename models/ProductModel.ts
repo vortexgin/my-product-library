@@ -26,6 +26,14 @@ export type ProductMetadataNestedInput = {
   value: string;
 };
 
+export type ProductBomNestedInput = {
+  uuid?: string;
+  component_product_id: string;
+  component_variant_id?: string | null;
+  variant_id?: string | null;
+  qty: number;
+};
+
 export type CreateProductInput = {
   sku: string;
   name: string;
@@ -35,6 +43,7 @@ export type CreateProductInput = {
   base_price: number;
   status?: ProductStatus;
   metadata?: ProductMetadataNestedInput[];
+  bom?: ProductBomNestedInput[];
 };
 
 export type UpdateProductInput = Partial<CreateProductInput>;

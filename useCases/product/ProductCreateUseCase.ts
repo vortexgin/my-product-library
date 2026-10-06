@@ -6,6 +6,7 @@ import ProductCategoryModelFactory, { ProductCategoryModel } from "@/app/product
 import ProductUnitModelFactory, { ProductUnitModel } from "@/app/product/models/ProductUnitModel";
 import { ensurePcsUnit } from "@/app/product/useCases/productUnit/ProductUnitCreateUseCase";
 import { syncProductMetadata, type MetadataNestedItem } from "@/app/product/useCases/product/productMetadataSync";
+import { syncProductBom, type BomNestedItem } from "@/app/product/useCases/product/productBomSync";
 import { UserModel } from "@/app/base/models/UserModel";
 import { recordActivityLog, type ActivityActor } from "@/app/base/models/ActivityLogModel";
 import { BaseUseCase } from "@/useCases/BaseUseCase";
@@ -20,6 +21,14 @@ const metadataNestedSchema = Joi.object({
   value: Joi.string().trim().min(1).required(),
 });
 
+const bomNestedSchema = Joi.object({
+  uuid: Joi.string().uuid({ version: "uuidv4" }).optional(),
+  component_product_id: Joi.string().uuid({ version: "uuidv4" }).required(),
+  component_variant_id: Joi.string().uuid({ version: "uuidv4" }).allow(null).optional(),
+  variant_id: Joi.string().uuid({ version: "uuidv4" }).allow(null).optional(),
+  qty: Joi.number().integer().min(1).required(),
+});
+
 const createProductSchema = Joi.object({
   sku: Joi.string().trim().min(2).max(60).required(),
   name: Joi.string().trim().min(2).max(160).required(),
@@ -29,6 +38,7 @@ const createProductSchema = Joi.object({
   base_price: Joi.number().integer().min(0).required(),
   status: Joi.string().valid("active", "inactive", "deleted").optional(),
   metadata: Joi.array().items(metadataNestedSchema).optional(),
+  bom: Joi.array().items(bomNestedSchema).optional(),
 }).unknown(false);
 
 export type ProductCreateContext = { input: CreateProductInput; actor: ActivityActor; organizationId: string | null };
@@ -100,6 +110,8 @@ export class ProductCreateUseCase extends BaseUseCase<CreateProductInput, Produc
         organizationId,
         actor,
       );
+      // Bill of materials, managed nested here (no direct BoM API).
+      await syncProductBom(api.uuid, input.bom as BomNestedItem[] | undefined, organizationId, actor);
       return api;
     } catch (error) {
       if (error instanceof UniqueConstraintError) {
