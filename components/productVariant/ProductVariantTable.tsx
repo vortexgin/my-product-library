@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Table, type TableColumn, type TableRow } from "@/components/Table";
 import { StatusBadge } from "@/components/StatusBadge";
+import { formatMoney } from "@/libraries/Currency";
 import type { ProductVariant } from "@/app/product/models/ProductVariantModel";
 import type { SessionInfo } from "@/libraries/Auth";
 import { deleteEncrypted, getEncrypted } from "@/libraries/EncryptedFetch";
@@ -45,7 +46,7 @@ function renderProductVariantCell(column: TableColumn, row: TableRow, value: unk
   }
   if (column.key === "price_override") {
     return typeof value === "number" ? (
-      <span className="text-slate-900">{value}</span>
+      <span className="block text-right tabular-nums text-slate-900">{formatMoney(value)}</span>
     ) : (
       <span className="text-xs text-slate-400">base</span>
     );

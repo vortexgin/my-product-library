@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Table, type TableColumn, type TableRow } from "@/components/Table";
 import { StatusBadge } from "@/components/StatusBadge";
+import { formatMoney } from "@/libraries/Currency";
 import type { Product } from "@/app/product/models/ProductModel";
 import type { SessionInfo } from "@/libraries/Auth";
 import { deleteEncrypted, getEncrypted } from "@/libraries/EncryptedFetch";
@@ -42,6 +43,9 @@ async function deleteProductRow(uuid: string): Promise<string> {
 function renderProductCell(column: TableColumn, row: TableRow, value: unknown) {
   if (column.key === "sku") {
     return <span className="font-medium text-slate-900">{String(value ?? "—")}</span>;
+  }
+  if (column.key === "base_price") {
+    return <span className="block text-right tabular-nums text-slate-900">{formatMoney(value)}</span>;
   }
   if (column.key === "status") {
     return <StatusBadge status={String(value)} />;

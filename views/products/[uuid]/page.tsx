@@ -8,6 +8,7 @@ import { ActivityTimeline } from "@/components/ActivityTimeline";
 import { DeleteProductButton } from "@/app/product/components/product/DeleteProductButton";
 import { PRODUCT_LIST_PATH } from "@/app/product/views/products/paths";
 import { requireSession } from "@/libraries/Auth";
+import { formatMoney } from "@/libraries/Currency";
 import { ProductGetUseCase } from "@/app/product/useCases/product/ProductGetUseCase";
 import { ProductVariantListUseCase } from "@/app/product/useCases/productVariant/ProductVariantListUseCase";
 import { ProductMetadataListUseCase } from "@/app/product/useCases/productMetadata/ProductMetadataListUseCase";
@@ -18,11 +19,11 @@ export const metadata: Metadata = {
   title: "Product detail | VortexGin",
 };
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, numeric }: { label: string; value: string; numeric?: boolean }) {
   return (
     <div className="flex flex-col gap-1 border-b border-slate-100 py-3 last:border-0 sm:flex-row sm:items-baseline sm:gap-6">
       <dt className="w-32 shrink-0 text-xs font-medium uppercase tracking-wider text-slate-500">{label}</dt>
-      <dd className="break-all text-sm text-slate-900">{value}</dd>
+      <dd className={`break-all text-sm text-slate-900${numeric ? " tabular-nums sm:ml-auto sm:text-right" : ""}`}>{value}</dd>
     </div>
   );
 }
@@ -94,7 +95,7 @@ export default async function ProductDetailPage({
               <Row label="Description" value={product.description ?? "—"} />
               <Row label="Category" value={categoryLabel} />
               <Row label="Unit" value={unitLabel} />
-              <Row label="Base price" value={String(product.base_price)} />
+              <Row label="Base price" value={formatMoney(product.base_price)} numeric />
               <Row label="Status" value={product.status} />
               <Row label="Created" value={product.created_at} />
               <Row label="Updated" value={product.updated_at} />
@@ -162,8 +163,8 @@ export default async function ProductDetailPage({
                       >
                         {variant.name} · {variant.sku}
                       </Link>
-                      <span className="inline-flex rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                        {resolveEffectivePrice(variant, product.base_price)}
+                      <span className="inline-flex rounded-full bg-green-50 px-2.5 py-0.5 text-xs font-medium tabular-nums text-green-700">
+                        {formatMoney(resolveEffectivePrice(variant, product.base_price))}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-slate-500">

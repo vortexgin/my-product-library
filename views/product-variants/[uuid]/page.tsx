@@ -13,16 +13,17 @@ import { ProductGetUseCase } from "@/app/product/useCases/product/ProductGetUseC
 import { ProductMetadataListUseCase } from "@/app/product/useCases/productMetadata/ProductMetadataListUseCase";
 import { ProductMetadataFieldListUseCase } from "@/app/product/useCases/productMetadataField/ProductMetadataFieldListUseCase";
 import { resolveEffectivePrice } from "@/app/product/models/ProductVariantModel";
+import { formatMoney } from "@/libraries/Currency";
 
 export const metadata: Metadata = {
   title: "Product variant detail | VortexGin",
 };
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, numeric }: { label: string; value: string; numeric?: boolean }) {
   return (
     <div className="flex flex-col gap-1 border-b border-slate-100 py-3 last:border-0 sm:flex-row sm:items-baseline sm:gap-6">
       <dt className="w-32 shrink-0 text-xs font-medium uppercase tracking-wider text-slate-500">{label}</dt>
-      <dd className="break-all text-sm text-slate-900">{value}</dd>
+      <dd className={`break-all text-sm text-slate-900${numeric ? " tabular-nums sm:ml-auto sm:text-right" : ""}`}>{value}</dd>
     </div>
   );
 }
@@ -81,7 +82,7 @@ export default async function ProductVariantDetailPage({
               <Row label="Name" value={variant.name} />
               <Row label="Product" value={productName} />
               <Row label="Price override" value={variant.price_override !== null ? String(variant.price_override) : "— (base price)"} />
-              <Row label="Effective price" value={String(resolveEffectivePrice(variant, product?.base_price ?? 0))} />
+              <Row label="Effective price" value={formatMoney(resolveEffectivePrice(variant, product?.base_price ?? 0))} numeric />
               <Row label="Status" value={variant.status} />
               <Row label="Created" value={variant.created_at} />
               <Row label="Updated" value={variant.updated_at} />
